@@ -310,7 +310,7 @@
       const ls = logStatus(d, e);
       const st = ls === "On time" ? `<span class="chip green">On time</span>` : ls === "Late" ? `<span class="chip amber">Late</span>` : ls === "Expected" ? `<span class="chip" style="background:none;padding:0;color:var(--muted)">Expected by 10:00</span>` : `<span class="chip red">Missing</span>`;
       const row = `<tr class="row ${open ? "open" : ""}" data-toggle="${key}"><td class="w-chev"><button class="rowbtn" data-act="toggle" data-id="${key}" aria-expanded="${open}" aria-label="${open ? "Close" : "Open"} ${fmt(d)}">${ic(open ? "i-down" : "i-right", "s")}</button></td>
-        <td class="w-when"><button class="rowbtn" data-act="toggle" data-id="${key}"><span><span class="tt" style="display:block;color:var(--ink)">${fmtL(d)}</span>${d === t ? `<span class="ts">Today</span>` : d === DAYS[DAYS.indexOf(t) - 1] ? `<span class="ts">Yesterday</span>` : ""}</span></button></td>
+        <td class="w-when"><button class="rowbtn" data-act="toggle" data-id="${key}"><span><span class="tt" style="display:block;color:var(--ink)">${d === t ? "Today" : fmt(d)}</span><span class="ts">Day ${DAYS.indexOf(d) + 1}</span></span></button></td>
         <td class="w-res">${st}</td><td class="w-prev"><div class="preview">${e.txt ? esc(e.txt.split("\n")[0]) : `<span style="color:var(--muted)">—</span>`}</div></td></tr>`;
       if (!open) return row;
       return row + `<tr class="expand"><td colspan="4"><div class="detail">
