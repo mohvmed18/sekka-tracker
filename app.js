@@ -372,8 +372,8 @@
   function renderUser() {
     const p = S.profile, role = p.role === "lead" ? "Team lead" : isCoord() ? "Designer · Coordinator" : "Designer";
     const acts = `<button class="signout" data-act="signout">Sign out</button>`;
-    $("#side-foot").innerHTML = `<div class="side-user"><span>Signed in as</span><span class="nm">${esc(p.name)}</span><span>${role}</span><div class="acts">${acts}</div></div>`;
-    $("#mobile-user").innerHTML = `<span>Signed in as ${esc(p.name)}</span>${acts}`;
+    $("#side-foot").innerHTML = `<div class="side-user"><span class="nm">${esc(p.name)}</span><span>${role}</span><div class="acts">${acts}</div></div>`;
+    $("#mobile-user").innerHTML = `<span>${esc(p.name)}</span>${acts}`;
   }
   function safeRender() { const a = document.activeElement; if ((a && a.tagName === "TEXTAREA") || !menu.hidden) return; render(); }
   window.addEventListener("hashchange", () => { closeMenu(); tf.msg = ""; tf.err = ""; tf.open = null; if (current() === "log" && !ui.open?.startsWith("log-")) ui.open = "log-" + today(); render(); window.scrollTo({ top: 0 }); });
