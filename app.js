@@ -10,7 +10,7 @@
   const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
   const S = { tasks: [], meetings: [], log: {}, loaded: {}, ro: false, db: true, offline: false, owner: false, me: "", profile: null, profiles: [], team: { coordinator: "", parts: {} }, notes: {} };
-  const pages = () => PAGES.filter((x) => x.id !== "account" && (S.owner ? x.id !== "mine" : x.id !== "team"));
+  const pages = () => PAGES.filter((x) => x.id !== "account" && (S.owner ? x.id !== "mine" : x.id !== "team" && (x.id !== "log" || isCoord())));
   const coordName = () => S.team.coordinator;
   const isCoord = () => !!S.profile?.is_coordinator;
   const canPost = () => S.owner || isCoord();
@@ -57,8 +57,8 @@
 
   function attention() {
     const t = today(), h = hour(), out = [];
-    if (DAYS.includes(t) && h >= 10 && !(S.log[t]?.txt || S.log[t]?.rcv)) out.push({ ic: "i-msg", red: true, t: "No daily update logged today", d: "The coordinator's update was due at 10:00", r: "Today", go: "log" });
-    for (const m of S.meetings) {
+    if (canPost() && DAYS.includes(t) && h >= 10 && !(S.log[t]?.txt || S.log[t]?.rcv)) out.push({ ic: "i-msg", red: true, t: "No daily update logged today", d: "The coordinator's update was due at 10:00", r: "Today", go: "log" });
+    for (const m of S.owner ? S.meetings : []) {
       if (m.kind === "review" && m.d < t && !m.decision) out.push({ ic: "i-flag", t: `${m.id} has no result yet`, d: `Mark Pass or Fix for the ${short(m).toLowerCase()}`, r: fmt(m.d), go: "meetings" });
       if (m.kind === "review" && m.decision === "Fix within 2 days") {
         const due = DAYS[Math.min(DAYS.indexOf(m.d) + 2, DAYS.length - 1)];
@@ -97,7 +97,7 @@
       team: "Accounts for the team. Only you can see this page.",
       account: "Change the password you sign in with.",
       tasks: S.owner ? "Every task by week. Tap a status to change it." : "Every task by week. You can change your own and the team statuses.",
-      meetings: "Tuesday check-ins and Thursday reviews, all at 10 pm.",
+      meetings: S.owner ? "Tuesday check-ins and Thursday reviews, all at 10 pm." : "When the team meets. Every meeting is at 10 pm.",
       log: canPost() ? "The coordinator's update, one row per working day." : `${coordName() || "The coordinator"} posts the team update here every day by 10:00.`,
     }[v];
     $("#h1").textContent = PAGES.find((x) => x.id === v).label; $("#hsub").textContent = sub;
@@ -145,7 +145,7 @@
       const dur = m.id === "R4" ? 60 : m.kind === "review" ? 45 : 30;
       meetBody = `<div class="mt"><div class="mt-top"><span class="code ${m.kind === "review" ? "r" : ""}">${m.id}</span><div><b>${esc(short(m))}</b><span>${when}, 10 pm · ${dur} min</span></div></div>
         <div class="chips">${n === 0 ? `<span class="chip dark">Tonight</span>` : n === 1 ? `<span class="chip">Tomorrow</span>` : `<span class="chip">In ${n} days</span>`}<span class="chip">${m.kind === "review" ? "Phase review" : "Check-in"}</span></div>
-        <ul class="mini-checks">${(m.expect || []).map((e, i) => `<li class="${m.chk?.[i] ? "on" : ""}">${ic(m.chk?.[i] ? "i-sqc" : "i-sq", "s")}<span>${esc(e)}</span></li>`).join("")}</ul></div>`;
+        ${S.owner ? "" : "<!--"}<ul class="mini-checks">${(m.expect || []).map((e, i) => `<li class="${m.chk?.[i] ? "on" : ""}">${ic(m.chk?.[i] ? "i-sqc" : "i-sq", "s")}<span>${esc(e)}</span></li>`).join("")}</ul>${S.owner ? "" : "-->"}</div>`;
     }
     const meetFoot = m ? `<a class="link" href="#meetings" data-open="${m.id}">Open in Meetings ${ic("i-right", "s")}</a>` : "";
 
@@ -235,8 +235,20 @@
     </div>`;
   }
 
+  function viewSchedule() {
+    const t = today(), h = hour(), list = [...S.meetings].sort((a, b) => a.d.localeCompare(b.d));
+    const body = list.map((m) => {
+      const n = between(t, m.d);
+      const st = m.d < t || (m.d === t && h >= 23) ? `<span class="chip">Done</span>` : n === 0 ? `<span class="chip dark">Tonight</span>` : n === 1 ? `<span class="chip">Tomorrow</span>` : `<span class="chip" style="background:none;padding:0;color:var(--muted)">In ${n} days</span>`;
+      return `<tr class="row"><td class="w-code"><span class="code ${m.kind === "review" ? "r" : ""}" style="width:34px;height:34px;font-size:12px">${m.id}</span></td>
+        <td><span class="tt" style="display:block">${esc(short(m))}</span><span class="ts"><span class="m-only">${fmt(m.d)}, 10 pm · </span>${m.kind === "review" ? "Phase review" : "Check-in"} · ${m.id === "R4" ? 60 : m.kind === "review" ? 45 : 30} min</span></td>
+        <td class="w-when">${fmt(m.d)}, 10 pm</td><td class="w-res">${st}</td></tr>`;
+    }).join("");
+    return `<section class="card"><div class="scroll"><table class="tbl meets sched"><thead><tr><th></th><th>Meeting</th><th>When</th><th></th></tr></thead><tbody>${body || `<tr class="empty-row"><td colspan="4">No meetings yet.</td></tr>`}</tbody></table></div></section>`;
+  }
   function viewMeetings() {
     if (!S.loaded.meetings) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
+    if (!S.owner) return viewSchedule();
     const t = today(), list = [...S.meetings].sort((a, b) => a.d.localeCompare(b.d)), dis = S.ro ? "disabled" : "";
     const body = list.map((m) => {
       const open = ui.open === m.id, seen = (m.chk || []).filter(Boolean).length, total = (m.expect || []).length;
@@ -324,11 +336,11 @@
 
   // ---------- render ----------
   const VIEWS = { mine: viewMine, overview: viewOverview, tasks: viewTasks, meetings: viewMeetings, log: viewLog, team: viewTeam, account: viewAccount };
-  const current = () => { const h = location.hash.slice(1); if (h === "account" || pages().some((p) => p.id === h)) return h; return S.owner ? "overview" : "mine"; };
+  const current = () => { const h = location.hash.slice(1); if ((h === "account" && S.owner) || pages().some((p) => p.id === h)) return h; return S.owner ? "overview" : "mine"; };
   function render() { if (!S.profile) return; renderNav(); renderHead(); renderUser(); $("#view").innerHTML = VIEWS[current()](); }
   function renderUser() {
     const p = S.profile, role = p.role === "lead" ? "Team lead" : isCoord() ? "Designer · Coordinator" : "Designer";
-    const acts = `<a href="#account">Change password</a><button data-act="signout">Sign out</button>`;
+    const acts = `${S.owner ? `<a href="#account">Change password</a>` : ""}<button data-act="signout">Sign out</button>`;
     $("#side-foot").innerHTML = `<div class="side-user"><span>Signed in as</span><span class="nm">${esc(p.name)}</span><span>${role}</span><div class="acts">${acts}</div></div>`;
     $("#mobile-user").innerHTML = `<span>Signed in as ${esc(p.name)}</span>${acts}`;
   }
@@ -425,8 +437,8 @@
   async function loadAll() {
     const [t, m, l] = await Promise.all([
       sb.from("tasks").select("*").order("d").order("o"),
-      sb.from("meetings").select("*").order("d"),
-      sb.from("daily_log").select("*"),
+      S.owner ? sb.from("meetings").select("*").order("d") : sb.rpc("meeting_schedule"),
+      canPost() ? sb.from("daily_log").select("*") : Promise.resolve({ data: [], error: null }),
       loadProfiles(),
     ]);
     if (t.error || m.error || l.error) { S.offline = true; setSaved("Not connected", "warn"); safeRender(); return; }
@@ -442,7 +454,7 @@
   function subscribe() {
     if (channel) sb.removeChannel(channel);
     channel = sb.channel("tracker");
-    ["tasks", "meetings", "daily_log", "profiles"].concat(S.owner ? ["meeting_notes"] : []).forEach((tb) => channel.on("postgres_changes", { event: "*", schema: "public", table: tb }, reloadSoon));
+    ["tasks", "profiles"].concat(S.owner ? ["meetings", "meeting_notes"] : []).concat(canPost() ? ["daily_log"] : []).forEach((tb) => channel.on("postgres_changes", { event: "*", schema: "public", table: tb }, reloadSoon));
     channel.subscribe();
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.profile) loadAll(); });

@@ -307,6 +307,7 @@ textarea:focus { outline: none; border-color: #bdbdba; box-shadow: 0 0 0 3px var
   .tbl.meets tr.row, .tbl.logs tr.row { display: grid; align-items: center; gap: 4px 12px; padding: 12px 16px; border-bottom: 1px solid var(--line-2); }
   .tbl.meets tr.row { grid-template-columns: 34px minmax(0, 1fr) auto; }
   .tbl.meets td.w-chev, .tbl.meets td.w-when, .tbl.meets td.w-chk { display: none; }
+  .tbl.meets.sched tr.row { grid-template-columns: 34px minmax(0, 1fr) auto; }
   .tbl.meets td.w-code { width: auto; padding: 0; }
   .tbl.meets td.w-res, .tbl.logs td.w-res { width: auto; padding: 0; }
   .tbl.logs tr.row { grid-template-columns: minmax(0, 1fr) auto; }
