@@ -439,7 +439,7 @@
   function renderUser() {
     const p = S.profile, role = p.role === "lead" ? "Team lead" : isCoord() ? "Designer · Coordinator" : "Designer";
     const dark = document.documentElement.dataset.theme === "dark";
-    const acts = `<button class="theme-btn" data-act="theme" aria-pressed="${dark}">${ic(dark ? "i-sun" : "i-moon", "s")}${dark ? "Light mode" : "Dark mode"}</button><button class="signout" data-act="signout">Sign out</button>`;
+    const acts = `<button class="theme-row" data-act="theme" role="switch" aria-checked="${dark}"><span class="tl">${ic("i-moon", "s")}Dark mode</span><span class="switch" aria-hidden="true"><i></i></span></button><button class="signout" data-act="signout">Sign out</button>`;
     $("#side-foot").innerHTML = `<div class="side-user"><span class="nm">${esc(p.name)}</span><span>${role}</span><div class="acts">${acts}</div></div>`;
     $("#mobile-user").innerHTML = `<span>${esc(p.name)}</span>${acts}`;
   }
