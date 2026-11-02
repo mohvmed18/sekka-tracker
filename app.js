@@ -14,7 +14,7 @@
   const coordName = () => S.team.coordinator;
   const isCoord = () => !!S.profile?.is_coordinator;
   const canPost = () => S.owner || isCoord();
-  const canEdit = (k) => S.owner || k === S.me || k === "Team" || (k === "Coordinator" && isCoord());
+  const canEdit = (k) => S.owner ? k === "Sayed" : k === S.me || ((k === "Team" || k === "Coordinator") && isCoord());
   const cairoDay = (iso) => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date(iso));
   const cairoHour = (iso) => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", hour: "2-digit", hourCycle: "h23" }).format(new Date(iso)));
   function logStatus(d, e) {
@@ -96,7 +96,7 @@
       mine: `${S.me}${isCoord() ? " · Coordinator" : ""}${S.profile?.part ? " · " + S.profile.part : ""}`,
       team: "Accounts for the team. Only you can see this page.",
       account: "Change the password you sign in with.",
-      tasks: S.owner ? "Every task by week. Tap a status to change it." : "Every task and who does it. You only change your own status, the rest is there so you can see how the team is doing.",
+      tasks: S.owner ? "Every task by week. You update your own tasks, each designer updates hers and the coordinator updates the shared team tasks." : isCoord() ? "Every task and who does it. You change your own status and the shared team tasks." : `Every task and who does it. You change your own status. ${coordName() || "The coordinator"} updates the shared team tasks.`,
       meetings: S.owner ? "Tuesday check-ins and Thursday reviews, all at 10 pm." : "When the team meets. Every meeting is at 10 pm.",
       log: canPost() ? "The coordinator's update, one row per working day." : `${coordName() || "The coordinator"} posts the team update here every day by 10:00.`,
     }[v];
@@ -192,11 +192,11 @@
   const kindOf = (x) => { const ks = owners(x); return PEOPLE.every((p) => ks.includes(p)) ? "each" : ks[0]; };
   function assignedCell(x) {
     const kind = kindOf(x);
-    const theirs = kind !== "each" && !canEdit(kind) ? (() => { const st = x.st[kind] || "todo", late = lateFor(x, kind) && st !== "blocked"; return `<div class="people"><span class="pp ${late ? "late" : ""}" data-s="${st}">${sic(st)}${late && st === "todo" ? "Late" : SL[st]}</span></div>`; })() : "";
+    const theirs = kind !== "each" && !canEdit(kind) && !S.owner ? (() => { const st = x.st[kind] || "todo", late = lateFor(x, kind) && st !== "blocked"; return `<div class="people"><span class="pp ${late ? "late" : ""}" data-s="${st}">${sic(st)}${late && st === "todo" ? "Late" : SL[st]}</span></div>`; })() : "";
     if (kind === "each") {
       const people = PEOPLE.map((p) => {
         const s = x.st[p] || "todo", late = lateFor(x, p) && s !== "blocked", label = p === S.me ? "You" : p;
-        return S.owner && !S.ro
+        return false
           ? `<button class="pp edit ${late ? "late" : ""}" data-act="status" data-id="${esc(x.id)}" data-k="${p}" data-s="${s}" aria-haspopup="menu" aria-label="${p}: ${SL[s]}. Change status">${sic(s)}${label}</button>`
           : `<span class="pp ${late ? "late" : ""}" data-s="${s}" title="${p}: ${late && s === "todo" ? "Late" : SL[s]}">${sic(s)}${label}</span>`;
       }).join("");
@@ -213,7 +213,9 @@
       const d = PEOPLE.filter((p) => done(x, p)).length;
       return `<span class="sum">${d} of 3 done</span>`;
     }
-    return canEdit(kind) ? statusBtn(x, kind) : `<span class="not-yours">Not your task</span>`;
+    if (canEdit(kind)) return statusBtn(x, kind);
+    if (S.owner) return stView(x, kind);
+    return `<span class="not-yours">${kind === "Team" ? `${esc(coordName() || "The coordinator")} updates this` : "Not your task"}</span>`;
   }
   function viewTasks() {
     if (!S.loaded.tasks) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
@@ -251,7 +253,7 @@
     const week = mine.filter((x) => x.d > t && (groupOf(x.d) === cg || (cg === 1 && groupOf(x.d) === 0)));
     const nextW = DAYS.find((d) => d > t && groupOf(d) !== cg);
     const upcoming = !todays.length && !week.length && nextW ? mine.filter((x) => groupOf(x.d) === groupOf(nextW)) : [];
-    const line = (x) => `<li class="ml"><div><div class="t">${esc(x.t)}</div><div class="d"><span class="${x.d < t && open(x) ? "due-late" : ""}">${x.d === t ? "Due today" : "Due " + fmt(x.d)}</span>${x.del ? " · Deliverable" : ""}${keys(x).some((k) => k !== me) ? ` · ${keys(x).includes("Coordinator") ? "Your coordinator task" : "Shared by the whole team"}` : ""}</div></div>
+    const line = (x) => `<li class="ml"><div><div class="t">${esc(x.t)}</div><div class="d"><span class="${x.d < t && open(x) ? "due-late" : ""}">${x.d === t ? "Due today" : "Due " + fmt(x.d)}</span>${x.del ? " · Deliverable" : ""}${keys(x).some((k) => k !== me) ? ` · ${keys(x).includes("Coordinator") ? "Your coordinator task" : coord ? "Shared by the whole team · you update it" : `Shared by the whole team · ${esc(coordName() || "the coordinator")} updates it`}` : ""}</div></div>
       <span class="r mine-st">${keys(x).map((k) => statusBtn(x, k)).join("")}</span></li>`;
     const block = (title, list, aside, emptyText) => card("c12 mine", title, aside, list.length ? `<ul class="rows">${list.map(line).join("")}</ul>` : `<div class="empty-st" style="padding:18px 10px"><span>${emptyText}</span></div>`);
     const pct = own.length ? Math.round(ownDone / own.length * 100) : 0;
