@@ -7,10 +7,12 @@
   const GROUPS = ["Before kickoff", "Week 1 · Discovery", "Week 2 · Flows and wireframes", "Week 3 · UI design", "Week 4 · Delivery"];
   const PAGES = [{ id: "mine", label: "My tasks", ic: "i-user" }, { id: "overview", label: "Overview", ic: "i-home" }, { id: "tasks", label: "Tasks", ic: "i-list" }, { id: "meetings", label: "Meetings", ic: "i-cal" }, { id: "log", label: "Daily log", ic: "i-msg" }, { id: "team", label: "Team", ic: "i-team" }, { id: "account", label: "Account", ic: "i-user" }];
   const SB_URL = "https://jesmxsxpufklyzvnrpda.supabase.co", SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Implc214c3hwdWZrbHl6dm5ycGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NjIxOTUsImV4cCI6MjEwOTEzODE5NX0.epUbwdAONjAWLiFXzIEiJx9kj7A_E979eC8_tH-Hlkc", DOMAIN = "sekka.team";
+  function setTheme(t, save) { document.documentElement.dataset.theme = t; if (save) { try { localStorage.setItem("sekka-theme", t); } catch (_) {} } }
+  (() => { let t = null; try { t = localStorage.getItem("sekka-theme"); } catch (_) {} setTheme(t || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")); })();
   const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
   const S = { pnotes: {}, activity: {}, tasks: [], meetings: [], log: {}, loaded: {}, ro: false, db: true, offline: false, owner: false, me: "", profile: null, profiles: [], team: { coordinator: "", parts: {} }, notes: {} };
-  const pages = () => PAGES.filter((x) => x.id !== "account" && (S.owner ? x.id !== "mine" : x.id !== "team" && (x.id !== "log" || isCoord())));
+  const pages = () => PAGES.filter((x) => x.id !== "account" && x.id !== "mine" && (S.owner ? true : x.id !== "team" && (x.id !== "log" || isCoord())));
   const coordName = () => S.team.coordinator;
   const isCoord = () => !!S.profile?.is_coordinator;
   const canPost = () => S.owner || isCoord();
@@ -22,7 +24,7 @@
     if (e && e.rcv) return e.rcv;
     return d === today() && hour() < 10 ? "Expected" : "Missing";
   }
-  const ui = { filter: "week", person: "all", open: null };
+  const ui = { filter: "week", person: "all", open: null, personSet: false };
 
   // ---------- helpers ----------
   const $ = (s) => document.querySelector(s);
@@ -144,8 +146,8 @@
     else {
       const n = between(t, m.d), when = n === 0 ? "Tonight" : n === 1 ? "Tomorrow" : fmtL(m.d);
       const dur = m.id === "R4" ? 60 : m.kind === "review" ? 45 : 30;
-      meetBody = `<div class="mt"><div class="mt-top"><span class="code ${m.kind === "review" ? "r" : ""}">${m.id}</span><div><b>${esc(short(m))}</b><span>${when}, 10 pm · ${dur} min</span></div></div>
-        <div class="chips">${n === 0 ? `<span class="chip dark">Tonight</span>` : n === 1 ? `<span class="chip">Tomorrow</span>` : `<span class="chip">In ${n} days</span>`}<span class="chip">${m.kind === "review" ? "Phase review" : "Check-in"}</span></div>
+      meetBody = `<div class="mt"><div class="mt-top"><span class="code ${m.kind === "review" ? "r" : "c"}">${m.id}</span><div><b>${esc(short(m))}</b><span>${when}, 10 pm · ${dur} min</span></div></div>
+        <div class="chips">${n === 0 ? `<span class="chip dark">Tonight</span>` : n === 1 ? `<span class="chip amber">Tomorrow</span>` : `<span class="chip">In ${n} days</span>`}<span class="chip ${m.kind === "review" ? "violet" : "blue"}">${m.kind === "review" ? "Phase review" : "Check-in"}</span></div>
         ${S.owner ? "" : "<!--"}<ul class="mini-checks">${(m.expect || []).map((e, i) => `<li class="${m.chk?.[i] ? "on" : ""}">${ic(m.chk?.[i] ? "i-sqc" : "i-sq", "s")}<span>${esc(e)}</span></li>`).join("")}</ul>${S.owner ? "" : "-->"}</div>`;
     }
     const meetFoot = m ? `<a class="link" href="#meetings" data-open="${m.id}">Open in Meetings ${ic("i-right", "s")}</a>` : "";
@@ -201,11 +203,11 @@
           ? `<button class="pp edit ${late ? "late" : ""}" data-act="status" data-id="${esc(x.id)}" data-k="${p}" data-s="${s}" aria-haspopup="menu" aria-label="${p}: ${SL[s]}. Change status">${sic(s)}${label}</button>`
           : `<span class="pp ${late ? "late" : ""}" data-s="${s}" title="${p}: ${late && s === "todo" ? "Late" : SL[s]}">${sic(s)}${label}</span>`;
       }).join("");
-      return `<div class="assign"><span class="tag">${ic("i-user", "s")}Each designer does her own</span><div class="people">${people}</div></div>`;
+      return `<div class="assign"><span class="tag teal">${ic("i-user", "s")}Each designer does her own</span><div class="people">${people}</div></div>`;
     }
-    if (kind === "Team") return `<div class="assign"><span class="tag team">${ic("i-team", "s")}Whole team · one shared task</span>${theirs}</div>`;
-    if (kind === "Coordinator") return `<div class="assign"><span class="tag">${ic("i-flag", "s")}Coordinator · ${S.owner ? esc(coordName() || "not set") : isCoord() ? "You" : esc(coordName() || "not set")}</span>${theirs}</div>`;
-    return `<div class="assign"><span class="tag">${ic("i-user", "s")}${esc(name(kind))}${kind === "Sayed" && !S.owner ? " · team lead" : ""}</span>${theirs}</div>`;
+    if (kind === "Team") return `<div class="assign"><span class="tag indigo">${ic("i-team", "s")}Whole team · one shared task</span>${theirs}</div>`;
+    if (kind === "Coordinator") return `<div class="assign"><span class="tag violet">${ic("i-flag", "s")}Coordinator · ${S.owner ? esc(coordName() || "not set") : isCoord() ? "You" : esc(coordName() || "not set")}</span>${theirs}</div>`;
+    return `<div class="assign"><span class="tag amber">${ic("i-user", "s")}${esc(name(kind))}${kind === "Sayed" && !S.owner ? " · team lead" : ""}</span>${theirs}</div>`;
   }
   function statusCell(x) {
     const kind = kindOf(x);
@@ -219,8 +221,24 @@
     if (S.owner) return stView(x, kind);
     return `<span class="not-yours">${kind === "Team" ? `${esc(coordName() || "The coordinator")} updates this` : "Not your task"}</span>`;
   }
+  function myStats() {
+    const me = S.me, t = today(), coord = isCoord();
+    const keys = (x) => owners(x).filter((k) => k === me || k === "Team" || (k === "Coordinator" && coord));
+    const mine = S.tasks.filter((x) => keys(x).length);
+    const own = S.tasks.filter((x) => me in x.st), ownDone = own.filter((x) => done(x, me)).length;
+    const late = mine.filter((x) => x.d < t && keys(x).some((k) => !done(x, k) && x.st[k] !== "blocked")).length;
+    const dueToday = mine.filter((x) => x.d === t && keys(x).some((k) => !done(x, k))).length;
+    const pct = own.length ? Math.round(ownDone / own.length * 100) : 0, m = nextMeeting();
+    return `<div class="grid" style="margin-bottom:16px">
+      <section class="card c3 stat"><span class="label">My tasks done</span><span class="value">${ownDone}<small>of ${own.length}</small></span><div class="meter"><i style="width:${pct}%"></i></div><span class="hint">${pct}% complete</span></section>
+      <section class="card c3 stat"><span class="label">Due today</span><span class="value">${dueToday}</span><div class="meter" style="visibility:hidden"></div><span class="hint">${dueToday ? "Still open today" : "Nothing left for today"}</span></section>
+      <section class="card c3 stat"><span class="label">Late</span><span class="value ${late ? "red" : ""}">${late}</span><div class="meter" style="visibility:hidden"></div><span class="hint">${late ? "Finish these first" : "Nothing overdue"}</span></section>
+      <section class="card c3 stat"><span class="label">Next meeting</span><span class="value" style="font-size:20px">${m ? `${m.id}<small>${m.d === t ? "tonight" : fmt(m.d)}, 10 pm</small>` : "None"}</span><div class="meter" style="visibility:hidden"></div><span class="hint">${m ? esc(short(m)) : "Project complete"}</span></section>
+    </div>`;
+  }
   function viewTasks() {
     if (!S.loaded.tasks) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
+    if (!ui.personSet) { ui.person = S.owner ? "all" : "mine"; ui.personSet = true; }
     const t = today(), cg = currentGroup();
     const lateCount = S.tasks.filter((x) => anyLate(x) || owners(x).some((k) => x.st[k] === "blocked")).length;
     const who = (x) => ui.person === "all" ? true : ui.person === "mine" ? (S.owner ? "Sayed" in x.st : owners(x).some((k) => k === S.me || k === "Team" || (k === "Coordinator" && isCoord()))) : ui.person in x.st || "Team" in x.st || ("Coordinator" in x.st && coordName() === ui.person);
@@ -235,7 +253,7 @@
           <td class="w-stat ${kindOf(x) !== "each" && !canEdit(kindOf(x)) ? "na" : ""}"><span class="m-only st-lbl">${S.owner ? "Status" : "Your status"}</span>${statusCell(x)}</td></tr>`;
       }).join("")).join("");
     const empty = `<tr class="empty-row"><td colspan="4">${ui.filter === "late" ? "Nothing is late or blocked." : ui.filter === "week" ? "No tasks this week." : "No tasks."}</td></tr>`;
-    return `<section class="card">
+    return `${S.owner ? "" : myStats()}<section class="card">
       <div class="toolbar"><div class="seg" role="group" aria-label="Filter tasks">
         <button data-act="filter" data-v="week" aria-pressed="${ui.filter === "week"}">This week</button>
         <button data-act="filter" data-v="all" aria-pressed="${ui.filter === "all"}">All weeks</button>
@@ -276,8 +294,8 @@
     const t = today(), h = hour(), list = [...S.meetings].sort((a, b) => a.d.localeCompare(b.d));
     const body = list.map((m) => {
       const n = between(t, m.d);
-      const st = m.d < t || (m.d === t && h >= 23) ? `<span class="chip">Done</span>` : n === 0 ? `<span class="chip dark">Tonight</span>` : n === 1 ? `<span class="chip">Tomorrow</span>` : `<span class="chip" style="background:none;padding:0;color:var(--muted)">In ${n} days</span>`;
-      return `<tr class="row"><td class="w-code"><span class="code ${m.kind === "review" ? "r" : ""}" style="width:34px;height:34px;font-size:12px">${m.id}</span></td>
+      const st = m.d < t || (m.d === t && h >= 23) ? `<span class="chip">Done</span>` : n === 0 ? `<span class="chip dark">Tonight</span>` : n === 1 ? `<span class="chip amber">Tomorrow</span>` : `<span class="chip" style="background:none;padding:0;color:var(--muted)">In ${n} days</span>`;
+      return `<tr class="row"><td class="w-code"><span class="code ${m.kind === "review" ? "r" : "c"}" style="width:34px;height:34px;font-size:12px">${m.id}</span></td>
         <td><span class="tt" style="display:block">${esc(short(m))}</span><span class="ts"><span class="m-only">${fmt(m.d)}, 10 pm · </span>${m.kind === "review" ? "Phase review" : "Check-in"} · ${m.id === "R4" ? 60 : m.kind === "review" ? 45 : 30} min</span></td>
         <td class="w-when">${fmt(m.d)}, 10 pm</td><td class="w-res">${st}</td></tr>`;
     }).join("");
@@ -290,9 +308,9 @@
     const body = list.map((m) => {
       const open = ui.open === m.id, seen = (m.chk || []).filter(Boolean).length, total = (m.expect || []).length;
       const res = m.kind === "review" && m.decision ? `<span class="chip ${m.decision === "Pass" ? "green" : "amber"}">${esc(m.decision === "Pass" ? "Passed" : "Fix in 2 days")}</span>`
-        : m.d === t ? `<span class="chip dark">Tonight</span>` : m.d < t ? (m.kind === "review" ? `<span class="chip red">No result</span>` : `<span class="chip">Held</span>`) : `<span class="chip" style="background:none;padding:0;color:var(--muted)">Upcoming</span>`;
+        : m.d === t ? `<span class="chip dark">Tonight</span>` : m.d < t ? (m.kind === "review" ? `<span class="chip red">No result</span>` : `<span class="chip blue">Held</span>`) : `<span class="chip" style="background:none;padding:0;color:var(--muted)">Upcoming</span>`;
       const row = `<tr class="row ${open ? "open" : ""}" data-toggle="${m.id}"><td class="w-chev"><button class="rowbtn" data-act="toggle" data-id="${m.id}" aria-expanded="${open}" aria-label="${open ? "Close" : "Open"} ${esc(m.title)}">${ic(open ? "i-down" : "i-right", "s")}</button></td>
-        <td class="w-code"><span class="code ${m.kind === "review" ? "r" : ""}" style="width:34px;height:34px;font-size:12px">${m.id}</span></td>
+        <td class="w-code"><span class="code ${m.kind === "review" ? "r" : "c"}" style="width:34px;height:34px;font-size:12px">${m.id}</span></td>
         <td><button class="rowbtn" data-act="toggle" data-id="${m.id}"><span><span class="tt" style="display:block">${esc(short(m))}</span><span class="ts"><span class="m-only">${fmt(m.d)}, 10 pm · ${seen}/${total} seen · </span>${m.kind === "review" ? "Phase review" : "Check-in"} · ${m.id === "R4" ? 60 : m.kind === "review" ? 45 : 30} min</span></span></button></td>
         <td class="w-when">${fmt(m.d)}, 10 pm</td><td class="w-chk">${seen} of ${total} seen</td><td class="w-res">${res}</td></tr>`;
       if (!open) return row;
@@ -340,7 +358,7 @@
     const designers = S.profiles.filter((p) => p.role === "designer"), lead = S.profiles.find((p) => p.role === "lead");
     const free = PEOPLE.filter((n) => !designers.some((p) => p.name === n));
     const row = (p) => `<div class="member"><span class="ava" aria-hidden="true">${esc(p.name[0])}</span>
-      <div><div class="nm">${esc(p.name)}${p.role === "lead" ? `<span class="chip">Team lead</span>` : ""}${p.is_coordinator ? `<span class="chip dark">Coordinator</span>` : ""}</div><div class="sub">Username ${esc(p.username)}${p.part ? " · " + esc(p.part) : ""}</div></div>
+      <div><div class="nm">${esc(p.name)}${p.role === "lead" ? `<span class="chip amber">Team lead</span>` : ""}${p.is_coordinator ? `<span class="chip violet">Coordinator</span>` : ""}</div><div class="sub">Username ${esc(p.username)}${p.part ? " · " + esc(p.part) : ""}</div></div>
       <div class="acts">${p.role === "designer" ? `<a class="btn ghost sm" href="#profile-${esc(p.name)}">Profile</a>` : ""}${p.role === "designer" && !p.is_coordinator ? `<button class="btn ghost sm" data-act="t-coord" data-id="${p.id}">Make coordinator</button>` : ""}<button class="btn ghost sm" data-act="t-open" data-id="${p.id}">${tf.open === p.id ? "Cancel" : "Reset password"}</button>${p.role === "designer" ? `<button class="btn danger sm" data-act="t-del" data-id="${p.id}">Remove</button>` : ""}</div>
       ${tf.open === p.id ? `<form class="inline-form" data-form="pw" data-id="${p.id}"><input type="password" name="pw" placeholder="New password, 8 or more characters" minlength="8" required autocomplete="new-password"><button class="btn sm" ${tf.busy ? "disabled" : ""}>Save password</button></form>` : ""}</div>`;
     const add = free.length ? card("c12", "Add a designer", "", `<form data-form="add" autocomplete="off"><div class="form-grid">
@@ -388,7 +406,7 @@
     const pct = own.length ? Math.round(doneL.length / own.length * 100) : 0;
     const timed = onTime + doneLate, onPct = timed ? Math.round(onTime / timed * 100) : 0;
     const last = S.activity[p.id];
-    const header = `<section class="card c12"><div class="prof"><span class="ava lg" aria-hidden="true">${esc(nm[0])}</span><div><div class="nm">${esc(nm)}${p.is_coordinator ? `<span class="chip dark">Coordinator</span>` : ""}</div>
+    const header = `<section class="card c12"><div class="prof"><span class="ava lg" aria-hidden="true">${esc(nm[0])}</span><div><div class="nm">${esc(nm)}${p.is_coordinator ? `<span class="chip violet">Coordinator</span>` : ""}</div>
       <div class="sub">${p.part ? esc(p.part) + " · " : ""}Username ${esc(p.username)}</div><div class="sub">${last ? `Last signed in ${fmtTime(last)}` : "Hasn't signed in yet"}</div></div>
       <a class="btn ghost sm" href="#team">Back to Team</a></div></section>`;
     const stats = `
@@ -416,11 +434,12 @@
 
   // ---------- render ----------
   const VIEWS = { mine: viewMine, overview: viewOverview, tasks: viewTasks, meetings: viewMeetings, log: viewLog, team: viewTeam, account: viewAccount };
-  const current = () => { const h = decodeURIComponent(location.hash.slice(1)); if (S.owner && h.startsWith("profile-")) return h; if (pages().some((p) => p.id === h)) return h; return S.owner ? "overview" : "mine"; };
+  const current = () => { const h = decodeURIComponent(location.hash.slice(1)); if (S.owner && h.startsWith("profile-")) return h; if (pages().some((p) => p.id === h)) return h; return "overview"; };
   function render() { if (!S.profile) return; renderNav(); renderHead(); renderUser(); const v = current(); $("#view").innerHTML = v.startsWith("profile-") ? viewProfile(v.slice(8)) : VIEWS[v](); }
   function renderUser() {
     const p = S.profile, role = p.role === "lead" ? "Team lead" : isCoord() ? "Designer · Coordinator" : "Designer";
-    const acts = `<button class="signout" data-act="signout">Sign out</button>`;
+    const dark = document.documentElement.dataset.theme === "dark";
+    const acts = `<button class="theme-btn" data-act="theme" aria-pressed="${dark}">${ic(dark ? "i-sun" : "i-moon", "s")}${dark ? "Light mode" : "Dark mode"}</button><button class="signout" data-act="signout">Sign out</button>`;
     $("#side-foot").innerHTML = `<div class="side-user"><span class="nm">${esc(p.name)}</span><span>${role}</span><div class="acts">${acts}</div></div>`;
     $("#mobile-user").innerHTML = `<span>${esc(p.name)}</span>${acts}`;
   }
@@ -485,6 +504,7 @@
     if (act === "filter") { ui.filter = b.dataset.v; return render(); }
     if (act === "person") { ui.person = b.dataset.v; return render(); }
     if (act === "signout") { sb.auth.signOut(); return; }
+    if (act === "theme") { setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true); return renderUser(); }
     if (act === "t-open") { tf.open = tf.open === b.dataset.id ? null : b.dataset.id; tf.msg = ""; tf.err = ""; return render(); }
     if (act === "t-coord" || act === "t-del") {
       const p = S.profiles.find((x) => x.id === b.dataset.id); if (!p) return;
@@ -550,7 +570,7 @@
   const toEmail = (u) => `${String(u).trim().toLowerCase()}@${DOMAIN}`;
   function showAuth(mode, err = "") {
     $("#shell").hidden = true; $("#nav-bottom").hidden = true; const a = $("#auth"); a.hidden = false;
-    const logo = `<div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
+    const logo = `<div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
     if (mode === "loading") { a.innerHTML = `<div class="auth-card">${logo}<h1>Sekka Tracker</h1><p>Loading</p></div>`; return; }
     if (mode === "setup") {
       a.innerHTML = `<form class="auth-card" id="f-setup">${logo}<h1>Set up the tracker</h1><p>Create the team lead account. This only appears once.</p>
