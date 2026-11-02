@@ -59,7 +59,7 @@
 
   function attention() {
     const t = today(), h = hour(), out = [];
-    if (canPost() && DAYS.includes(t) && h >= 10 && !(S.log[t]?.txt || S.log[t]?.rcv)) out.push({ ic: "i-msg", red: true, t: "No daily update logged today", d: "The coordinator's update was due at 10:00", r: "Today", go: "log" });
+    if (canPost() && DAYS.includes(t) && h >= 10 && !(S.log[t]?.txt || S.log[t]?.rcv)) out.push({ ic: "i-msg", red: true, t: "No daily update logged today", d: "The coordinator's update was due at 10 am", r: "Today", go: "log" });
     for (const m of S.owner ? S.meetings : []) {
       if (m.kind === "review" && m.d < t && !m.decision) out.push({ ic: "i-flag", t: `${m.id} has no result yet`, d: `Mark Pass or Fix for the ${short(m).toLowerCase()}`, r: fmt(m.d), go: "meetings" });
       if (m.kind === "review" && m.decision === "Fix within 2 days") {
@@ -100,9 +100,9 @@
       account: "Change the password you sign in with.",
       tasks: S.owner ? "Every task by week. You update your own tasks, each designer updates hers and the coordinator updates the shared team tasks." : isCoord() ? "Every task and who does it. You change your own status and the shared team tasks." : `Every task and who does it. You change your own status. ${coordName() || "The coordinator"} updates the shared team tasks.`,
       meetings: S.owner ? "Tuesday check-ins and Thursday reviews, all at 10 pm." : "When the team meets. Every meeting is at 10 pm.",
-      log: canPost() ? "The coordinator's update, one row per working day." : `${coordName() || "The coordinator"} posts the team update here every day by 10:00.`,
+      log: canPost() ? "The coordinator's update, one row per working day." : `${coordName() || "The coordinator"} posts the team update here every day by 10 am.`,
     }[v];
-    if (v.startsWith("profile-")) { $("#h1").textContent = v.slice(8); $("#hsub").textContent = "Her progress, dates and your private notes. Only you can see this page."; }
+    if (v.startsWith("profile-")) { $("#h1").textContent = v.slice(8); $("#hsub").textContent = S.profiles.find((x) => x.name === v.slice(8))?.role === "lead" ? "Your account." : "Her progress, dates, account and your private notes. Only you can see this page."; }
     else { $("#h1").textContent = PAGES.find((x) => x.id === v).label; $("#hsub").textContent = sub; }
     $("#banner").innerHTML = S.offline ? `<div class="banner" role="status">${ic("i-alert")}<span>Can't reach the saved data right now, so what you see may be out of date. Changes won't save until it reconnects.</span></div>` : "";
   }
@@ -328,17 +328,17 @@
     if (!S.loaded.log) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
     const t = today(), h = hour(), dis = S.ro ? "disabled" : "";
     const days = DAYS.filter((d) => d <= t).reverse();
-    if (!days.length) return `<section class="card"><div class="card-b"><div class="empty-st">${ic("i-msg")}<b>No updates yet</b><span>The first update arrives on Sunday 1 November by 10:00.</span></div></div></section>`;
+    if (!days.length) return `<section class="card"><div class="card-b"><div class="empty-st">${ic("i-msg")}<b>No updates yet</b><span>The first update arrives on Sunday 1 November by 10 am.</span></div></div></section>`;
     const body = days.map((d) => {
       const e = S.log[d] || {}, key = "log-" + d, open = ui.open === key;
       const ls = logStatus(d, e);
-      const st = ls === "On time" ? `<span class="chip green">On time</span>` : ls === "Late" ? `<span class="chip amber">Late</span>` : ls === "Expected" ? `<span class="chip" style="background:none;padding:0;color:var(--muted)">Expected by 10:00</span>` : `<span class="chip red">Missing</span>`;
+      const st = ls === "On time" ? `<span class="chip green">On time</span>` : ls === "Late" ? `<span class="chip amber">Late</span>` : ls === "Expected" ? `<span class="chip" style="background:none;padding:0;color:var(--muted)">Expected by 10 am</span>` : `<span class="chip red">Missing</span>`;
       const row = `<tr class="row ${open ? "open" : ""}" data-toggle="${key}"><td class="w-chev"><button class="rowbtn" data-act="toggle" data-id="${key}" aria-expanded="${open}" aria-label="${open ? "Close" : "Open"} ${fmt(d)}">${ic(open ? "i-down" : "i-right", "s")}</button></td>
         <td class="w-when"><button class="rowbtn" data-act="toggle" data-id="${key}"><span><span class="tt" style="display:block;color:var(--ink)">${d === t ? "Today" : fmt(d)}</span><span class="ts">Day ${DAYS.indexOf(d) + 1}</span></span></button></td>
         <td class="w-res">${st}</td><td class="w-prev"><div class="preview">${e.txt ? esc(e.txt.split("\n")[0]) : `<span style="color:var(--muted)">—</span>`}</div></td></tr>`;
       if (!open) return row;
       return row + `<tr class="expand"><td colspan="4"><div class="detail">
-        <div><h3><label for="t-${d}">Team update</label>${e.at ? ` · posted ${new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", hour: "2-digit", minute: "2-digit" }).format(new Date(e.at))}${e.by ? " by " + esc(e.by) : ""}` : ""}</h3>${canPost() ? `<textarea id="t-${d}" rows="7" data-act="txt" data-d="${d}" ${dis} placeholder="What each of you did yesterday, what you're doing today, and anything blocking you">${esc(e.txt || "")}</textarea><p class="ts" style="margin:6px 0 0">Saves when you tap outside the box. Posting before 10:00 counts as on time.</p>` : e.txt ? `<p class="logtext">${esc(e.txt)}</p>` : `<p class="ts" style="margin:0">Nothing posted for this day.</p>`}</div>
+        <div><h3><label for="t-${d}">Team update</label>${e.at ? ` · posted ${new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Cairo", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(e.at)).toLowerCase()}${e.by ? " by " + esc(e.by) : ""}` : ""}</h3>${canPost() ? `<textarea id="t-${d}" rows="7" data-act="txt" data-d="${d}" ${dis} placeholder="What each of you did yesterday, what you're doing today, and anything blocking you">${esc(e.txt || "")}</textarea><p class="ts" style="margin:6px 0 0">Saves when you tap outside the box. Posting before 10 am counts as on time.</p>` : e.txt ? `<p class="logtext">${esc(e.txt)}</p>` : `<p class="ts" style="margin:0">Nothing posted for this day.</p>`}</div>
       </div></td></tr>`;
     }).join("");
     return `<section class="card"><div class="scroll"><table class="tbl logs"><thead><tr><th></th><th>Day</th><th>Status</th><th>Update</th></tr></thead><tbody>${body}</tbody></table></div></section>`;
@@ -357,10 +357,9 @@
     if (!S.owner) return "";
     const designers = S.profiles.filter((p) => p.role === "designer"), lead = S.profiles.find((p) => p.role === "lead");
     const free = PEOPLE.filter((n) => !designers.some((p) => p.name === n));
-    const row = (p) => `<div class="member"><span class="ava" aria-hidden="true">${esc(p.name[0])}</span>
+    const row = (p) => `<a class="member link-row" href="#profile-${encodeURIComponent(p.name)}"><span class="ava" aria-hidden="true">${esc(p.name[0])}</span>
       <div><div class="nm">${esc(p.name)}${p.role === "lead" ? `<span class="chip amber">Team lead</span>` : ""}${p.is_coordinator ? `<span class="chip violet">Coordinator</span>` : ""}</div><div class="sub">Username ${esc(p.username)}${p.part ? " · " + esc(p.part) : ""}</div></div>
-      <div class="acts">${p.role === "designer" ? `<a class="btn ghost sm" href="#profile-${esc(p.name)}">Profile</a>` : ""}${p.role === "designer" && !p.is_coordinator ? `<button class="btn ghost sm" data-act="t-coord" data-id="${p.id}">Make coordinator</button>` : ""}<button class="btn ghost sm" data-act="t-open" data-id="${p.id}">${tf.open === p.id ? "Cancel" : "Reset password"}</button>${p.role === "designer" ? `<button class="btn danger sm" data-act="t-del" data-id="${p.id}">Remove</button>` : ""}</div>
-      ${tf.open === p.id ? `<form class="inline-form" data-form="pw" data-id="${p.id}"><input type="password" name="pw" placeholder="New password, 8 or more characters" minlength="8" required autocomplete="new-password"><button class="btn sm" ${tf.busy ? "disabled" : ""}>Save password</button></form>` : ""}</div>`;
+      <span class="go">${ic("i-right", "s")}</span></a>`;
     const add = free.length ? card("c12", "Add a designer", "", `<form data-form="add" autocomplete="off"><div class="form-grid">
         <label class="field"><span>Name</span><select name="name">${free.map((n) => `<option>${n}</option>`).join("")}</select></label>
         <label class="field"><span>Username</span><input name="username" placeholder="for example nour" pattern="[A-Za-z0-9]{3,20}" required autocapitalize="none"></label>
@@ -368,7 +367,7 @@
         <label class="field"><span>Part of the product</span><input name="part" placeholder="for example Cash settlement"></label></div>
         <label class="check-row"><input type="checkbox" name="coord">She is the coordinator</label>
         <p class="err">${esc(tf.err)}</p><button class="btn" ${tf.busy ? "disabled" : ""}>Create account</button></form><p class="ts" style="margin:12px 0 16px">Usernames are letters and numbers only. Send each girl her username and password privately.</p>`) : "";
-    return `<div class="grid">${card("c12", "Team", `${designers.length} of 3 designers`, `<div>${[lead, ...designers].filter(Boolean).map(row).join("")}</div>${tf.msg ? `<p class="okmsg" style="margin:8px 0 12px">${esc(tf.msg)}</p>` : ""}${tf.open && tf.err ? `<p class="err" style="margin:8px 0 12px">${esc(tf.err)}</p>` : ""}`)}${add}</div>`;
+    return `<div class="grid">${card("c12", "Team", `${designers.length} of 3 designers`, `<div>${[lead, ...designers].filter(Boolean).map(row).join("")}</div>${tf.msg && !tf.err ? `<p class="okmsg" style="margin:8px 0 12px">${esc(tf.msg)}</p>` : ""}`)}${add}</div>`;
   }
   function viewAccount() {
     return `<div class="grid">${card("c6", "Change password", "", `<form data-form="mypw" style="padding-top:16px">
@@ -382,7 +381,7 @@
     tf.err = ""; tf.msg = ""; tf.busy = true; render();
     try {
       if (kind === "add") { await teamCall({ action: "create", name: fd.get("name"), username: fd.get("username"), password: fd.get("password"), part: fd.get("part"), is_coordinator: !!fd.get("coord") }); tf.msg = `Account created for ${fd.get("name")}. Username ${String(fd.get("username")).toLowerCase()}`; }
-      if (kind === "pw") { await teamCall({ action: "password", id: f.dataset.id, password: fd.get("pw") }); tf.open = null; tf.msg = "Password changed."; }
+      if (kind === "pw") { await teamCall({ action: "password", id: f.dataset.id, password: fd.get("pw") }); tf.open = null; tf.msg = "Password changed. Send the new one to her privately."; if (S.profiles.find((x) => x.id === f.dataset.id)?.role === "lead") tf.msg = "Your password is changed."; }
       if (kind === "mypw") { if (fd.get("pw") !== fd.get("pw2")) throw new Error("The two passwords don't match"); const { error } = await sb.auth.updateUser({ password: String(fd.get("pw")) }); if (error) throw error; tf.msg = "Your password is changed."; }
       await loadProfiles();
     } catch (err) { tf.err = err.message || "Something went wrong"; }
@@ -390,9 +389,28 @@
   });
 
   // ---------- profile (lead only) ----------
-  const fmtTime = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  const fmtTime = (iso) => { const d = new Date(iso), z = { timeZone: "Africa/Cairo" }; return `${new Intl.DateTimeFormat("en-GB", { ...z, weekday: "short", day: "numeric", month: "short" }).format(d)}, ${new Intl.DateTimeFormat("en-US", { ...z, hour: "numeric", minute: "2-digit", hour12: true }).format(d).toLowerCase()}`; };
+  function profHeader(p) {
+    const last = S.activity[p.id];
+    return `<section class="card c12"><div class="prof"><span class="ava lg" aria-hidden="true">${esc(p.name[0])}</span><div><div class="nm">${esc(p.name)}${p.role === "lead" ? `<span class="chip amber">Team lead</span>` : ""}${p.is_coordinator ? `<span class="chip violet">Coordinator</span>` : ""}</div>
+      <div class="sub">${p.part ? esc(p.part) + " · " : ""}Username ${esc(p.username)}</div><div class="sub">${last ? `Last signed in ${fmtTime(last)}` : "Hasn't signed in yet"}</div></div>
+      <a class="btn ghost sm" href="#team">Back to Team</a></div></section>`;
+  }
+  function accountCard(p) {
+    const designer = p.role === "designer";
+    const msg = tf.err ? `<p class="err" style="margin:0 0 12px">${esc(tf.err)}</p>` : tf.msg ? `<p class="okmsg" style="margin:0 0 12px">${esc(tf.msg)}</p>` : "";
+    return card("c12", "Account", designer ? "" : "Your own sign in", `<div class="acct">${msg}
+      <div class="acct-row"><div><b>Password</b><span>${designer ? "Set a new password, then send it to her privately." : "Change the password you sign in with."}</span></div>
+        <form class="inline-form" data-form="pw" data-id="${p.id}"><input type="password" name="pw" placeholder="New password, 8 or more characters" minlength="8" required autocomplete="new-password"><button class="btn sm" ${tf.busy ? "disabled" : ""}>Save password</button></form></div>
+      ${designer ? `<div class="acct-row"><div><b>Coordinator</b><span>${p.is_coordinator ? "She is the coordinator. She writes the daily update and updates the shared team tasks." : `${esc(coordName() || "No one")} is the coordinator now. Making ${esc(p.name)} coordinator moves the role to her.`}</span></div>
+        ${p.is_coordinator ? "" : `<button class="btn ghost sm" data-act="t-coord" data-id="${p.id}">Make her the coordinator</button>`}</div>
+      <div class="acct-row"><div><b>Remove account</b><span>She won't be able to sign in. Her task statuses stay.</span></div><button class="btn danger sm" data-act="t-del" data-id="${p.id}">Remove</button></div>` : ""}
+    </div>`);
+  }
   function viewProfile(nm) {
     if (!S.owner) return "";
+    const lp = S.profiles.find((x) => x.name === nm && x.role === "lead");
+    if (lp) return `<div class="grid">${profHeader(lp)}${accountCard(lp)}</div>`;
     const p = S.profiles.find((x) => x.name === nm && x.role === "designer");
     if (!p) return `<div class="grid">${card("c12", nm, "", `<div class="empty-st">${ic("i-user")}<b>No account yet</b><span>Create ${esc(nm)}'s account from the Team page.</span></div>`)}</div>`;
     if (!S.loaded.tasks) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
@@ -405,10 +423,7 @@
     const lateNow = own.filter((x) => x.d < t && st(x) !== "done" && st(x) !== "blocked").length, blocked = own.filter((x) => st(x) === "blocked").length;
     const pct = own.length ? Math.round(doneL.length / own.length * 100) : 0;
     const timed = onTime + doneLate, onPct = timed ? Math.round(onTime / timed * 100) : 0;
-    const last = S.activity[p.id];
-    const header = `<section class="card c12"><div class="prof"><span class="ava lg" aria-hidden="true">${esc(nm[0])}</span><div><div class="nm">${esc(nm)}${p.is_coordinator ? `<span class="chip violet">Coordinator</span>` : ""}</div>
-      <div class="sub">${p.part ? esc(p.part) + " · " : ""}Username ${esc(p.username)}</div><div class="sub">${last ? `Last signed in ${fmtTime(last)}` : "Hasn't signed in yet"}</div></div>
-      <a class="btn ghost sm" href="#team">Back to Team</a></div></section>`;
+    const header = profHeader(p);
     const stats = `
       <section class="card c3 stat"><span class="label">Her tasks done</span><span class="value">${doneL.length}<small>of ${own.length}</small></span><div class="meter"><i style="width:${pct}%"></i></div><span class="hint">${pct}% complete</span></section>
       <section class="card c3 stat"><span class="label">Done on time</span><span class="value">${timed ? onPct + "%" : "—"}</span><div class="meter"><i style="width:${onPct}%"></i></div><span class="hint">${timed ? `${onTime} on time · ${doneLate} late` : "No dated tasks yet"}</span></section>
@@ -429,7 +444,7 @@
     }).join("");
     const tasksCard = `<section class="card c12"><div class="card-h"><h2>Her tasks</h2><span class="aside">Team tasks are not counted here</span></div><div class="scroll"><table class="tbl prof-tasks"><thead><tr><th>Task</th><th>Due</th><th>Status</th><th>Done on</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
     const notes = card("c12", "Your notes about her", "Only you can see these", `<div style="padding:14px 0 10px"><textarea rows="5" data-act="pnotes" data-id="${p.id}" placeholder="Strengths, what to work on, feedback you gave, anything to follow up">${esc(S.pnotes[p.id] || "")}</textarea><p class="ts" style="margin:6px 0 0">Saves when you click outside the box.</p></div>`);
-    return `<div class="grid">${header}${stats}${logCard}${tasksCard}${notes}</div>`;
+    return `<div class="grid">${header}${stats}${logCard}${tasksCard}${notes}${accountCard(p)}</div>`;
   }
 
   // ---------- render ----------
@@ -444,7 +459,7 @@
     $("#mobile-user").innerHTML = `<span>${esc(p.name)}</span>${acts}`;
   }
   function safeRender() { const a = document.activeElement; if ((a && a.tagName === "TEXTAREA") || !menu.hidden) return; render(); }
-  window.addEventListener("hashchange", () => { closeMenu(); tf.msg = ""; tf.err = ""; tf.open = null; if (current() === "log" && !ui.open?.startsWith("log-")) ui.open = "log-" + today(); render(); window.scrollTo({ top: 0 }); });
+  window.addEventListener("hashchange", () => { closeMenu(); if (!tf.keep) { tf.msg = ""; tf.err = ""; } tf.keep = false; tf.open = null; if (current() === "log" && !ui.open?.startsWith("log-")) ui.open = "log-" + today(); render(); window.scrollTo({ top: 0 }); });
 
   // ---------- status menu ----------
   const menu = $("#menu"); let target = null;
@@ -511,7 +526,7 @@
       if (act === "t-del" && !window.confirm(`Remove ${p.name}'s account? She won't be able to sign in. Her task statuses stay.`)) return;
       tf.msg = ""; tf.err = "";
       teamCall(act === "t-del" ? { action: "delete", id: p.id } : { action: "update", id: p.id, is_coordinator: true })
-        .then(() => { tf.msg = act === "t-del" ? `${p.name}'s account was removed.` : `${p.name} is now the coordinator.`; return loadProfiles(); })
+        .then(() => { tf.msg = act === "t-del" ? `${p.name}'s account was removed.` : `${p.name} is now the coordinator.`; if (act === "t-del") { tf.keep = true; location.hash = "#team"; } return loadProfiles(); })
         .catch((err) => { tf.err = err.message; }).finally(render);
     }
   });
