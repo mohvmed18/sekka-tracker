@@ -9,7 +9,7 @@
   const SB_URL = "https://jesmxsxpufklyzvnrpda.supabase.co", SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Implc214c3hwdWZrbHl6dm5ycGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NjIxOTUsImV4cCI6MjEwOTEzODE5NX0.epUbwdAONjAWLiFXzIEiJx9kj7A_E979eC8_tH-Hlkc", DOMAIN = "sekka.team";
   const sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
-  const S = { tasks: [], meetings: [], log: {}, loaded: {}, ro: false, db: true, offline: false, owner: false, me: "", profile: null, profiles: [], team: { coordinator: "", parts: {} }, notes: {} };
+  const S = { pnotes: {}, activity: {}, tasks: [], meetings: [], log: {}, loaded: {}, ro: false, db: true, offline: false, owner: false, me: "", profile: null, profiles: [], team: { coordinator: "", parts: {} }, notes: {} };
   const pages = () => PAGES.filter((x) => x.id !== "account" && (S.owner ? x.id !== "mine" : x.id !== "team" && (x.id !== "log" || isCoord())));
   const coordName = () => S.team.coordinator;
   const isCoord = () => !!S.profile?.is_coordinator;
@@ -22,7 +22,7 @@
     if (e && e.rcv) return e.rcv;
     return d === today() && hour() < 10 ? "Expected" : "Missing";
   }
-  const ui = { filter: "week", open: null };
+  const ui = { filter: "week", person: "all", open: null };
 
   // ---------- helpers ----------
   const $ = (s) => document.querySelector(s);
@@ -82,7 +82,7 @@
 
   // ---------- nav + head ----------
   function renderNav() {
-    const v = current(), lateN = S.loaded.tasks ? counts().nLate + counts().nBlocked : 0;
+    const cv = current(), v = cv.startsWith("profile-") ? "team" : cv, lateN = S.loaded.tasks ? counts().nLate + counts().nBlocked : 0;
     const item = (p) => `<a href="#${p.id}" ${v === p.id ? 'aria-current="page"' : ""}>${ic(p.ic)}<span>${p.label}</span>${p.id === "tasks" && lateN ? `<span class="count" aria-label="${lateN} late or blocked">${lateN}</span>` : ""}</a>`;
     const P = pages();
     $("#nav-side").innerHTML = P.map(item).join("");
@@ -100,7 +100,8 @@
       meetings: S.owner ? "Tuesday check-ins and Thursday reviews, all at 10 pm." : "When the team meets. Every meeting is at 10 pm.",
       log: canPost() ? "The coordinator's update, one row per working day." : `${coordName() || "The coordinator"} posts the team update here every day by 10:00.`,
     }[v];
-    $("#h1").textContent = PAGES.find((x) => x.id === v).label; $("#hsub").textContent = sub;
+    if (v.startsWith("profile-")) { $("#h1").textContent = v.slice(8); $("#hsub").textContent = "Her progress, dates and your private notes. Only you can see this page."; }
+    else { $("#h1").textContent = PAGES.find((x) => x.id === v).label; $("#hsub").textContent = sub; }
     $("#banner").innerHTML = S.offline ? `<div class="banner" role="status">${ic("i-alert")}<span>Can't reach the saved data right now, so what you see may be out of date. Changes won't save until it reconnects.</span></div>` : "";
   }
 
@@ -167,7 +168,7 @@
     const team = PEOPLE.map((pp) => {
       const mine = S.tasks.filter((x) => pp in x.st), d = mine.filter((x) => done(x, pp)).length, l = mine.filter((x) => lateFor(x, pp) && x.st[pp] !== "blocked").length, b = mine.filter((x) => x.st[pp] === "blocked").length;
       const pc = mine.length ? Math.round(d / mine.length * 100) : 0;
-      return `<div class="person"><span class="ava" aria-hidden="true">${pp[0]}</span><div><div class="nm">${pp}${b ? `<span class="chip red">${b} blocked</span>` : l ? `<span class="chip red">${l} late</span>` : ""}</div><div class="meter"><i style="width:${pc}%"></i></div></div><span class="pc">${d}/${mine.length}</span></div>`;
+      return `<div class="person"><span class="ava" aria-hidden="true">${pp[0]}</span><div><div class="nm">${S.owner ? `<a class="link" href="#profile-${pp}">${pp}</a>` : pp}${b ? `<span class="chip red">${b} blocked</span>` : l ? `<span class="chip red">${l} late</span>` : ""}</div><div class="meter"><i style="width:${pc}%"></i></div></div><span class="pc">${d}/${mine.length}</span></div>`;
     }).join("");
 
     return `<div class="grid">${stats}
@@ -202,7 +203,7 @@
       }).join("");
       return `<div class="assign"><span class="tag">${ic("i-user", "s")}Each designer does her own</span><div class="people">${people}</div></div>`;
     }
-    if (kind === "Team") return `<div class="assign"><span class="tag team">${ic("i-team", "s")}Whole team · one shared task</span></div>`;
+    if (kind === "Team") return `<div class="assign"><span class="tag team">${ic("i-team", "s")}Whole team · one shared task</span>${theirs}</div>`;
     if (kind === "Coordinator") return `<div class="assign"><span class="tag">${ic("i-flag", "s")}Coordinator · ${S.owner ? esc(coordName() || "not set") : isCoord() ? "You" : esc(coordName() || "not set")}</span>${theirs}</div>`;
     return `<div class="assign"><span class="tag">${ic("i-user", "s")}${esc(name(kind))}${kind === "Sayed" && !S.owner ? " · team lead" : ""}</span>${theirs}</div>`;
   }
@@ -210,6 +211,7 @@
     const kind = kindOf(x);
     if (kind === "each") {
       if (!S.owner) return statusBtn(x, S.me);
+      if (PEOPLE.includes(ui.person)) return stView(x, ui.person);
       const d = PEOPLE.filter((p) => done(x, p)).length;
       return `<span class="sum">${d} of 3 done</span>`;
     }
@@ -221,7 +223,9 @@
     if (!S.loaded.tasks) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
     const t = today(), cg = currentGroup();
     const lateCount = S.tasks.filter((x) => anyLate(x) || owners(x).some((k) => x.st[k] === "blocked")).length;
-    const rows = S.tasks.filter((x) => ui.filter === "all" ? true : ui.filter === "late" ? anyLate(x) || owners(x).some((k) => x.st[k] === "blocked") : groupOf(x.d) === cg || (cg === 1 && groupOf(x.d) === 0));
+    const who = (x) => ui.person === "all" ? true : ui.person === "mine" ? (S.owner ? "Sayed" in x.st : owners(x).some((k) => k === S.me || k === "Team" || (k === "Coordinator" && isCoord()))) : ui.person in x.st || "Team" in x.st || ("Coordinator" in x.st && coordName() === ui.person);
+    const rows = S.tasks.filter(who).filter((x) => ui.filter === "all" ? true : ui.filter === "late" ? anyLate(x) || owners(x).some((k) => x.st[k] === "blocked") : groupOf(x.d) === cg || (cg === 1 && groupOf(x.d) === 0));
+    const personOpts = [["all", "All"], ["mine", "Mine"], ...PEOPLE.filter((p) => p !== S.me).map((p) => [p, p])];
     const groups = GROUPS.map(() => []); rows.forEach((x) => groups[groupOf(x.d)].push(x));
     const body = groups.map((g, gi) => !g.length ? "" : `<tr class="grp"><td colspan="4">${GROUPS[gi]}<span class="n">${g.filter(allDone).length} of ${g.length} done</span>${gi === cg && ui.filter !== "week" ? `<span class="chip now">Current</span>` : ""}</td></tr>` + g.map((x) => {
         const late = anyLate(x);
@@ -230,13 +234,13 @@
           <td class="w-assign">${assignedCell(x)}</td>
           <td class="w-stat ${kindOf(x) !== "each" && !canEdit(kindOf(x)) ? "na" : ""}"><span class="m-only st-lbl">${S.owner ? "Status" : "Your status"}</span>${statusCell(x)}</td></tr>`;
       }).join("")).join("");
-    const empty = `<tr class="empty-row"><td colspan="4">${ui.filter === "late" ? "Nothing is late or blocked." : "No tasks this week."}</td></tr>`;
+    const empty = `<tr class="empty-row"><td colspan="4">${ui.filter === "late" ? "Nothing is late or blocked." : ui.filter === "week" ? "No tasks this week." : "No tasks."}</td></tr>`;
     return `<section class="card">
       <div class="toolbar"><div class="seg" role="group" aria-label="Filter tasks">
         <button data-act="filter" data-v="week" aria-pressed="${ui.filter === "week"}">This week</button>
         <button data-act="filter" data-v="all" aria-pressed="${ui.filter === "all"}">All weeks</button>
         <button data-act="filter" data-v="late" aria-pressed="${ui.filter === "late"}"><span class="d-only">Late and blocked</span><span class="m-only">Late</span>${lateCount ? ` <span class="n">${lateCount}</span>` : ""}</button></div>
-        <div class="legend">${STATES.map((s) => `<span class="st-ro" data-s="${s}">${sic(s)}${SL[s]}</span>`).join("")}</div></div>
+        <div class="seg people-seg" role="group" aria-label="Show tasks for">${personOpts.map(([v, l]) => `<button data-act="person" data-v="${v}" aria-pressed="${ui.person === v}">${l}</button>`).join("")}</div></div>
       <div class="scroll"><table class="tbl tasks"><thead><tr><th>Task</th><th>Due</th><th>Who does it</th><th>${S.owner ? "Status" : "Your status"}</th></tr></thead><tbody>${body || empty}</tbody></table></div>
     </section>`;
   }
@@ -337,7 +341,7 @@
     const free = PEOPLE.filter((n) => !designers.some((p) => p.name === n));
     const row = (p) => `<div class="member"><span class="ava" aria-hidden="true">${esc(p.name[0])}</span>
       <div><div class="nm">${esc(p.name)}${p.role === "lead" ? `<span class="chip">Team lead</span>` : ""}${p.is_coordinator ? `<span class="chip dark">Coordinator</span>` : ""}</div><div class="sub">Username ${esc(p.username)}${p.part ? " · " + esc(p.part) : ""}</div></div>
-      <div class="acts">${p.role === "designer" && !p.is_coordinator ? `<button class="btn ghost sm" data-act="t-coord" data-id="${p.id}">Make coordinator</button>` : ""}<button class="btn ghost sm" data-act="t-open" data-id="${p.id}">${tf.open === p.id ? "Cancel" : "Reset password"}</button>${p.role === "designer" ? `<button class="btn danger sm" data-act="t-del" data-id="${p.id}">Remove</button>` : ""}</div>
+      <div class="acts">${p.role === "designer" ? `<a class="btn ghost sm" href="#profile-${esc(p.name)}">Profile</a>` : ""}${p.role === "designer" && !p.is_coordinator ? `<button class="btn ghost sm" data-act="t-coord" data-id="${p.id}">Make coordinator</button>` : ""}<button class="btn ghost sm" data-act="t-open" data-id="${p.id}">${tf.open === p.id ? "Cancel" : "Reset password"}</button>${p.role === "designer" ? `<button class="btn danger sm" data-act="t-del" data-id="${p.id}">Remove</button>` : ""}</div>
       ${tf.open === p.id ? `<form class="inline-form" data-form="pw" data-id="${p.id}"><input type="password" name="pw" placeholder="New password, 8 or more characters" minlength="8" required autocomplete="new-password"><button class="btn sm" ${tf.busy ? "disabled" : ""}>Save password</button></form>` : ""}</div>`;
     const add = free.length ? card("c12", "Add a designer", "", `<form data-form="add" autocomplete="off"><div class="form-grid">
         <label class="field"><span>Name</span><select name="name">${free.map((n) => `<option>${n}</option>`).join("")}</select></label>
@@ -367,10 +371,53 @@
     tf.busy = false; render();
   });
 
+  // ---------- profile (lead only) ----------
+  const fmtTime = (iso) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Cairo", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  function viewProfile(nm) {
+    if (!S.owner) return "";
+    const p = S.profiles.find((x) => x.name === nm && x.role === "designer");
+    if (!p) return `<div class="grid">${card("c12", nm, "", `<div class="empty-st">${ic("i-user")}<b>No account yet</b><span>Create ${esc(nm)}'s account from the Team page.</span></div>`)}</div>`;
+    if (!S.loaded.tasks) return `<section class="card"><div class="card-b">${skel(6)}</div></section>`;
+    const t = today();
+    const keyOf = (x) => nm in x.st ? nm : p.is_coordinator && "Coordinator" in x.st ? "Coordinator" : null;
+    const own = S.tasks.filter(keyOf);
+    const st = (x) => x.st[keyOf(x)] || "todo", at = (x) => x.done_at?.[keyOf(x)];
+    const doneL = own.filter((x) => st(x) === "done");
+    const onTime = doneL.filter((x) => at(x) && cairoDay(at(x)) <= x.d).length, doneLate = doneL.filter((x) => at(x) && cairoDay(at(x)) > x.d).length;
+    const lateNow = own.filter((x) => x.d < t && st(x) !== "done" && st(x) !== "blocked").length, blocked = own.filter((x) => st(x) === "blocked").length;
+    const pct = own.length ? Math.round(doneL.length / own.length * 100) : 0;
+    const timed = onTime + doneLate, onPct = timed ? Math.round(onTime / timed * 100) : 0;
+    const last = S.activity[p.id];
+    const header = `<section class="card c12"><div class="prof"><span class="ava lg" aria-hidden="true">${esc(nm[0])}</span><div><div class="nm">${esc(nm)}${p.is_coordinator ? `<span class="chip dark">Coordinator</span>` : ""}</div>
+      <div class="sub">${p.part ? esc(p.part) + " · " : ""}Username ${esc(p.username)}</div><div class="sub">${last ? `Last signed in ${fmtTime(last)}` : "Hasn't signed in yet"}</div></div>
+      <a class="btn ghost sm" href="#team">Back to Team</a></div></section>`;
+    const stats = `
+      <section class="card c3 stat"><span class="label">Her tasks done</span><span class="value">${doneL.length}<small>of ${own.length}</small></span><div class="meter"><i style="width:${pct}%"></i></div><span class="hint">${pct}% complete</span></section>
+      <section class="card c3 stat"><span class="label">Done on time</span><span class="value">${timed ? onPct + "%" : "—"}</span><div class="meter"><i style="width:${onPct}%"></i></div><span class="hint">${timed ? `${onTime} on time · ${doneLate} late` : "No dated tasks yet"}</span></section>
+      <section class="card c3 stat"><span class="label">Late now</span><span class="value ${lateNow ? "red" : ""}">${lateNow}</span><div class="meter" style="visibility:hidden"></div><span class="hint">${lateNow ? "Past due and not done" : "Nothing overdue"}</span></section>
+      <section class="card c3 stat"><span class="label">Blocked now</span><span class="value ${blocked ? "red" : ""}">${blocked}</span><div class="meter" style="visibility:hidden"></div><span class="hint">${blocked ? "Needs help" : "Not stuck"}</span></section>`;
+    let logCard = "";
+    if (p.is_coordinator) {
+      const days = DAYS.filter((d) => d < t || (d === t && hour() >= 10)), c = { "On time": 0, Late: 0, Missing: 0 };
+      days.forEach((d) => { const r = logStatus(d, S.log[d] || {}); if (r in c) c[r]++; });
+      logCard = card("c12", "Daily updates as coordinator", `${days.length} working days so far`, `<div class="logstats"><span><b>${c["On time"]}</b> on time</span><span><b class="${c.Late ? "amber" : ""}">${c.Late}</b> late</span><span><b class="${c.Missing ? "red" : ""}">${c.Missing}</b> missing</span><a class="link" href="#log">Open Daily log ${ic("i-right", "s")}</a></div>`);
+    }
+    const rows = own.map((x) => {
+      const a = at(x), dl = a ? between(x.d, cairoDay(a)) : 0;
+      const doneOn = st(x) !== "done" ? `<span class="ts">—</span>` : !a ? `<span class="ts">Date not recorded</span>`
+        : `${fmt(cairoDay(a))} <span class="chip ${dl > 0 ? "amber" : "green"}">${dl > 0 ? `${dl} ${dl === 1 ? "day" : "days"} late` : "On time"}</span>`;
+      return `<tr class="row"><td class="w-task"><div class="tt">${esc(x.t)}</div><div class="ts">${keyOf(x) === "Coordinator" ? "Coordinator task · " : ""}${esc(x.ph)}</div></td>
+        <td class="w-due ${x.d < t && st(x) !== "done" ? "due-late" : ""}">${fmt(x.d)}</td><td class="w-stat">${stView(x, keyOf(x))}</td><td class="w-doneon">${doneOn}</td></tr>`;
+    }).join("");
+    const tasksCard = `<section class="card c12"><div class="card-h"><h2>Her tasks</h2><span class="aside">Team tasks are not counted here</span></div><div class="scroll"><table class="tbl prof-tasks"><thead><tr><th>Task</th><th>Due</th><th>Status</th><th>Done on</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+    const notes = card("c12", "Your notes about her", "Only you can see these", `<div style="padding:14px 0 10px"><textarea rows="5" data-act="pnotes" data-id="${p.id}" placeholder="Strengths, what to work on, feedback you gave, anything to follow up">${esc(S.pnotes[p.id] || "")}</textarea><p class="ts" style="margin:6px 0 0">Saves when you click outside the box.</p></div>`);
+    return `<div class="grid">${header}${stats}${logCard}${tasksCard}${notes}</div>`;
+  }
+
   // ---------- render ----------
   const VIEWS = { mine: viewMine, overview: viewOverview, tasks: viewTasks, meetings: viewMeetings, log: viewLog, team: viewTeam, account: viewAccount };
-  const current = () => { const h = location.hash.slice(1); if (pages().some((p) => p.id === h)) return h; return S.owner ? "overview" : "mine"; };
-  function render() { if (!S.profile) return; renderNav(); renderHead(); renderUser(); $("#view").innerHTML = VIEWS[current()](); }
+  const current = () => { const h = decodeURIComponent(location.hash.slice(1)); if (S.owner && h.startsWith("profile-")) return h; if (pages().some((p) => p.id === h)) return h; return S.owner ? "overview" : "mine"; };
+  function render() { if (!S.profile) return; renderNav(); renderHead(); renderUser(); const v = current(); $("#view").innerHTML = v.startsWith("profile-") ? viewProfile(v.slice(8)) : VIEWS[v](); }
   function renderUser() {
     const p = S.profile, role = p.role === "lead" ? "Team lead" : isCoord() ? "Designer · Coordinator" : "Designer";
     const acts = `<button class="signout" data-act="signout">Sign out</button>`;
@@ -436,6 +483,7 @@
     if (act === "status") { if (target === b) return closeMenu(); closeMenu(); return openMenu(b); }
     if (act === "toggle") { ui.open = ui.open === b.dataset.id ? null : b.dataset.id; return render(); }
     if (act === "filter") { ui.filter = b.dataset.v; return render(); }
+    if (act === "person") { ui.person = b.dataset.v; return render(); }
     if (act === "signout") { sb.auth.signOut(); return; }
     if (act === "t-open") { tf.open = tf.open === b.dataset.id ? null : b.dataset.id; tf.msg = ""; tf.err = ""; return render(); }
     if (act === "t-coord" || act === "t-del") {
@@ -453,6 +501,7 @@
     const ok = ({ error }) => { if (error) throw error; };
     if (act === "chk" && m && S.owner) { const chk = [...(m.chk || [])]; chk[Number(el.dataset.i)] = el.checked; m.chk = chk; render(); return save(async () => ok(await sb.from("meetings").update({ chk }).eq("id", m.id))); }
     if (act === "dec" && m && S.owner) { m.decision = el.value; render(); return save(async () => ok(await sb.from("meetings").update({ decision: el.value }).eq("id", m.id))); }
+    if (act === "pnotes" && S.owner) { S.pnotes[el.dataset.id] = el.value; return save(async () => ok(await sb.from("person_notes").upsert({ profile_id: el.dataset.id, notes: el.value, updated_at: new Date().toISOString() }))); }
     if (act === "notes" && m && S.owner) { S.notes[m.id] = el.value; return save(async () => ok(await sb.from("meeting_notes").upsert({ meeting_id: m.id, notes: el.value }))); }
     if (act === "txt" && canPost()) { const d = el.dataset.d; S.log[d] = { ...(S.log[d] || {}), txt: el.value }; render();
       return save(async () => { const { data, error } = await sb.from("daily_log").upsert({ d, txt: el.value }).select().single(); if (error) throw error; S.log[d] = mapLog(data); safeRender(); }); }
@@ -478,7 +527,12 @@
     S.offline = false;
     S.tasks = t.data; S.meetings = m.data;
     S.log = Object.fromEntries(l.data.map((r) => [r.d, mapLog(r)]));
-    if (S.owner) { const n = await sb.from("meeting_notes").select("*"); S.notes = Object.fromEntries((n.data || []).map((r) => [r.meeting_id, r.notes])); }
+    if (S.owner) {
+      const [n, pn, act] = await Promise.all([sb.from("meeting_notes").select("*"), sb.from("person_notes").select("*"), sb.rpc("people_activity")]);
+      S.notes = Object.fromEntries((n.data || []).map((r) => [r.meeting_id, r.notes]));
+      S.pnotes = Object.fromEntries((pn.data || []).map((r) => [r.profile_id, r.notes]));
+      S.activity = Object.fromEntries((act.data || []).map((r) => [r.id, r.last_sign_in_at]));
+    }
     S.loaded = { tasks: true, meetings: true, log: true };
     setSaved("All changes saved"); safeRender();
   }

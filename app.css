@@ -183,6 +183,18 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .pp.edit { border-radius: 6px; padding: 2px 6px; margin: -2px -6px; }
 .pp.edit:hover { background: var(--sel); color: var(--ink); }
 .sum { font-size: 13px; color: var(--ink-2); }
+.toolbar .people-seg { margin-left: auto; }
+.prof { display: flex; align-items: center; gap: 16px; padding: 18px 20px; flex-wrap: wrap; }
+.prof > div { flex: 1; min-width: 200px; }
+.prof .nm { font-size: 18px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.prof .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.ava.lg { width: 52px; height: 52px; font-size: 20px; }
+.logstats { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; padding: 16px 0 14px; color: var(--muted); }
+.logstats b { font-size: 20px; color: var(--ink); margin-right: 4px; }
+.logstats b.amber { color: var(--doing); } .logstats b.red { color: var(--late); }
+.logstats .link { margin-left: auto; }
+.tbl .w-doneon { width: 220px; white-space: nowrap; }
+.tbl.prof-tasks .w-stat { width: 140px; }
 .not-yours { font-size: 12.5px; color: var(--muted); }
 .signout { color: var(--late) !important; }
 .signout:hover { color: #a3412b !important; }
@@ -257,7 +269,7 @@ textarea:focus { outline: none; border-color: #bdbdba; box-shadow: 0 0 0 3px var
 .field input, .field select { height: 42px; border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; background: #fff; width: 100%; }
 .field input:focus, .field select:focus { outline: none; border-color: #bdbdba; box-shadow: 0 0 0 3px var(--line-2); }
 .check-row { display: flex; gap: 8px; align-items: center; margin: 2px 0 16px; font-size: 13.5px; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 8px; background: var(--ink); color: #fff; font-weight: 500; }
+.btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 8px; background: var(--ink); color: #fff; font-weight: 500; }
 .btn.full { width: 100%; height: 44px; }
 .btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
 .btn.ghost:hover { background: var(--hover); }
@@ -322,6 +334,11 @@ textarea:focus { outline: none; border-color: #bdbdba; box-shadow: 0 0 0 3px var
   .tbl.tasks td.w-stat { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
   .tbl.tasks .st-lbl { font-size: 12.5px; color: var(--muted); }
   .tbl.tasks td.w-stat.na { display: none; }
+  .toolbar .people-seg { margin-left: 0; overflow-x: auto; }
+  .tbl.prof-tasks tr.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 12px 16px; border-bottom: 1px solid var(--line-2); }
+  .tbl.prof-tasks td { padding: 0; width: auto; }
+  .tbl.prof-tasks td.w-task { grid-column: 1 / -1; min-width: 0; }
+  .tbl.prof-tasks td.w-doneon { grid-column: 1 / -1; white-space: normal; }
   .tbl.tasks .st.edit { height: 40px; padding: 0 10px 0 12px; font-size: 14px; }
   .tbl .ts .m-only.due-late { color: var(--late); font-weight: 500; }
   .tbl .ts .m-only.due-today { color: var(--ink); font-weight: 600; }
